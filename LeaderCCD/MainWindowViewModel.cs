@@ -11,6 +11,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using System.Configuration;
 using BingLibrary.hjb.file;
+using OxyPlot.Legends;
 
 namespace LeaderCCD
 {
@@ -43,12 +44,16 @@ namespace LeaderCCD
         private double x;
 
         private bool test;
+        private int minPress,maxPress;
         private void DoPLCStatusChanged(string e)
         {
             if (e == "Start")
             {
-                test = Convert.ToInt32(ConfigurationManager.AppSettings["TimesBox1"]) < 11;
+                test = Convert.ToInt32(ConfigurationManager.AppSettings["TimesBox1"]) == 1;
+                minPress = test ? Convert.ToInt32(ConfigurationManager.AppSettings["PreBoxMin"] ): 0;
+                maxPress = test ? Convert.ToInt32(ConfigurationManager.AppSettings["PreBox"]) : 0;
                 times = 0;
+                second = false;
                 max = 0;
                 ModbusTCP.ModbusWrite(1, 15, 350, new int[] { 0 });
                 lineSeries.Points.Clear();
@@ -175,13 +180,14 @@ namespace LeaderCCD
                         Thread.Sleep(100);
                         int[] a = ModbusTCP.ModbusRead(1, 3, 88, 2);//读位置
                         int[] b = ModbusTCP.ModbusRead(1, 1, 350, 2);//开始
-                        if (a == null || b == null) continue;
+                        int[] c = ModbusTCP.ModbusRead(1, 3, 610, 1);
+                        if (a == null || b == null||c==null) continue;
                         int p = a[0] + (a[1] << 16);
                         xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100;
-                        //if (t)
-                        //{
-                        //    Saveinform(times == 0, xyzPosition.ToString());
-                        //}
+                        if (test&&c[0]> minPress&&c[0]<maxPress)
+                        {
+                            SaveinformTest( xyzPosition.ToString());
+                        }
                         if (xyzPosition > max)
                         {
                             max = xyzPosition;
@@ -212,11 +218,7 @@ namespace LeaderCCD
 
                 if (n)
                 {
-                    if (!test) filePath = "E:\\保存参数\\正常测试" + ConfigurationManager.AppSettings["TimesBox1"] + "次" + DateTime.Now.ToString("yyyy_MM_dd HH.mm.ss") + ".csv";
-                    else
-                    {
-                        filePath = "E:\\保存参数\\实时保存测试" + ConfigurationManager.AppSettings["TimesBox1"] + "次" + DateTime.Now.ToString("yyyy_MM_dd HH.mm.ss") + ".csv";
-                    }
+                    filePath = "E:\\保存参数\\正常测试" + ConfigurationManager.AppSettings["TimesBox1"] + "次" + DateTime.Now.ToString("yyyy_MM_dd HH.mm.ss") + ".csv";
                     oldPath = filePath;
                 }
                 else
@@ -243,6 +245,42 @@ namespace LeaderCCD
                 }
 
             }));
+        }
+
+        private bool second = false;
+
+        public  void SaveinformTest( string position)
+        {
+            string filePath = "";
+            if (!Directory.Exists("E:\\保存参数"))
+            {
+                Directory.CreateDirectory("E:\\保存参数");
+            }
+            if (!second)
+            {
+                filePath = "E:\\保存参数\\实时保存测试" + ConfigurationManager.AppSettings["TimesBox1"] + "次" + DateTime.Now.ToString("yyyy_MM_dd HH.mm.ss") + ".csv"; ;
+                oldPath = filePath;
+                second = true;
+            }
+            else
+            {
+                filePath = oldPath;
+            }
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    string[] heads = { "时间", "位置" };
+                    Csvfile.AddNewLine(filePath, heads);
+                }
+                string[] conte = { System.DateTime.Now.ToString(), position };
+                Csvfile.AddNewLine(filePath, conte);
+            }
+            catch (Exception ex)
+            {
+                LdrLog(ex.Message);
+            }
+
         }
 
         private void ModbusTCP_ConnectStateChanged(object sender, string e)
@@ -283,17 +321,16 @@ namespace LeaderCCD
             Model = new PlotModel
             {
                 Title = "实时位置曲线", //图表的Titile
-
-                //Subtitle = "直线" //图表的说明
+               
             };
             var lineSeries1 = new LineSeries
             {
                 Title = "Series 1",
                 //MarkerType = MarkerType.Circle,
-                Color = OxyColors.Blue,
-                StrokeThickness = 2,
-                MarkerSize = 3,
-                MarkerStroke = OxyColors.BlueViolet,
+                //Color = OxyColors.Blue,
+                //StrokeThickness = 2,
+                //MarkerSize = 3,
+                //MarkerStroke = OxyColors.BlueViolet,
             };
 
             //添加标注线
@@ -341,6 +378,7 @@ namespace LeaderCCD
             Model.Axes.Add(bottomAxis);
             Model.Axes.Add(leftAxis);
             Model.Series.Add(lineSeries1);//将线添加到图标的容器中
+            
             Random rd = new Random();
             await Task.Run(
                 () =>
@@ -350,6 +388,7 @@ namespace LeaderCCD
                         lock (lineLock1)
                         {
                             lineSeries1.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), xyzPosition));
+                            lineSeries1.Title = "123";
                             if (lineSeries1.Points.Count > 200)
                             {
                                 lineSeries1.Points.RemoveAt(0);
@@ -378,7 +417,8 @@ namespace LeaderCCD
             Position = AxisPosition.Left,
             MajorGridlineStyle = LineStyle.Solid,
             MinorGridlineStyle = LineStyle.Dot,
-            Title = "位置(mm)",
+            Title = "位置",
+            Unit = "mm",
             //MajorStep = 1,
             //MinorStep = 1,
             IsZoomEnabled = false,//坐标轴缩放关闭
@@ -390,7 +430,7 @@ namespace LeaderCCD
             IsZoomEnabled = false,//坐标轴缩放关闭
             IsPanEnabled = true,//图表缩放功能关闭
             Title = "次数",
-            Minimum = 0,
+            //Minimum = 0,
             //MinorStep = 1,
             MajorGridlineStyle = LineStyle.Solid,
             MinorGridlineStyle = LineStyle.Dot,
@@ -398,9 +438,10 @@ namespace LeaderCCD
         private LineSeries lineSeries = new LineSeries()
         {
             Title = "Series 1",
-            Color = OxyColors.Blue,
+            //Color = OxyColors.Blue,
             //MarkerType = MarkerType.Circle
         };
+       
         /// <summary>
         /// 初始化压力图表
         /// </summary>
@@ -413,6 +454,7 @@ namespace LeaderCCD
             ModelRes.Axes.Add(leftAxis);
             ModelRes.Axes.Add(botAxis);
             ModelRes.Series.Add(lineSeries);
+            lineSeries.InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline;
         }
         object lineLock = new object();
         object lineLock1 = new object();
@@ -427,6 +469,8 @@ namespace LeaderCCD
                 {
                     lineSeries.Points.Add(new DataPoint(times, y));
                     //lineSeries.Points.Add(new DataPoint(times, rm.Next(0, 10)));
+                    ModelRes.Axes[0].Maximum = ModelRes.Axes[0].DataMaximum + 0.5;
+                    ModelRes.Axes[0].Minimum = ModelRes.Axes[0].DataMinimum - 0.5;
                     ModelRes.InvalidatePlot(true);
                 }
             });

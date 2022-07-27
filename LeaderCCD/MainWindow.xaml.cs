@@ -33,6 +33,7 @@ namespace LeaderCCD
             TimesBox.Text= ConfigurationManager.AppSettings["TimesBox"];
             TimeBox.Text= ConfigurationManager.AppSettings["TimeBox"];
             PreBox.Text= ConfigurationManager.AppSettings["PreBox"];
+            PreBoxMin.Text= ConfigurationManager.AppSettings["PreBoxMin"];
             SpeedBox.Text= ConfigurationManager.AppSettings["SpeedBox"];
             TimesBox1.Text= ConfigurationManager.AppSettings["TimesBox1"];
         }
@@ -62,12 +63,12 @@ namespace LeaderCCD
                 //    mes += "置位时间值错误\r\n";
                 //    res = false;
                 //}
-                if (!isNumber(PreBox.Text)|| !isNumber(SpeedBox.Text)|| !isNumber(TimesBox1.Text))
+                if (!isNumber(PreBox.Text)|| !isNumber(SpeedBox.Text)|| !isNumber(TimesBox1.Text)||!isNumber(PreBoxMin.Text))
                 {
                     MessageBox.Show("有参数不是数字");
                     return;
                 }
-                if ( Convert.ToInt32(PreBox.Text) < 5 || Convert.ToInt32(PreBox.Text) > 3000)
+                if ( Convert.ToInt32(PreBox.Text) < 5 || Convert.ToInt32(PreBox.Text) > 3000|| Convert.ToInt32(PreBoxMin.Text) < 5 || Convert.ToInt32(PreBoxMin.Text) > 3000)
                 {
                     mes += "压力值错误\r\n";
                     res = false;
@@ -87,6 +88,7 @@ namespace LeaderCCD
                     M.cfa.AppSettings.Settings["TimesBox"].Value = TimesBox.Text;
                     M.cfa.AppSettings.Settings["TimeBox"].Value = TimeBox.Text;
                     M.cfa.AppSettings.Settings["PreBox"].Value = PreBox.Text;
+                    M.cfa.AppSettings.Settings["PreBoxMin"].Value = PreBoxMin.Text;
                     M.cfa.AppSettings.Settings["SpeedBox"].Value = SpeedBox.Text;
                     M.cfa.AppSettings.Settings["TimesBox1"].Value = TimesBox1.Text;
                     M.cfa.Save(ConfigurationSaveMode.Modified);

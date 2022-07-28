@@ -36,7 +36,7 @@ namespace LeaderCCD
             DoPLCStatusChanged(e);
         }
         /// <summary>
-        /// 计次，0就是刚开始
+        /// 普通保存计次，0就是刚开始
         /// </summary>
         private int times;
         /// <summary>
@@ -45,17 +45,19 @@ namespace LeaderCCD
         private double x;
 
         private bool test;
-        private int minPress,maxPress;
+        public int minPress,maxPress;
         private void DoPLCStatusChanged(string e)
         {
             if (e == "Start")
             {
                 test = Convert.ToInt32(ConfigurationManager.AppSettings["TimesBox1"]) == 1;
-                minPress = test ? Convert.ToInt32(ConfigurationManager.AppSettings["PreBoxMin"] ): 0;
-                maxPress = test ? Convert.ToInt32(ConfigurationManager.AppSettings["PreBox"]) : 0;
+                minPress = Convert.ToInt32(ConfigurationManager.AppSettings["PreBoxMin"] );
+                maxPress = Convert.ToInt32(ConfigurationManager.AppSettings["PreBox"]);
                 times = 0;
                 second = false;
                 max = 0;
+                maxxx = 0;
+                minnn= 1000000;
                 ModbusTCP.ModbusWrite(1, 15, 350, new int[] { 0 });
                 lineSeries.Points.Clear();
                 ModelRes.InvalidatePlot(true);
@@ -161,7 +163,9 @@ namespace LeaderCCD
         }
 
         #endregion
-
+        /// <summary>
+        /// 记录第二张表的最大值
+        /// </summary>
         double max;
         static bool mHasStartPLC = false;
         public DXH.Modbus.DXHModbusTCP ModbusTCP;
@@ -185,9 +189,13 @@ namespace LeaderCCD
                         if (a == null || b == null||c==null) continue;
                         int p = a[0] + (a[1] << 16);
                         xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100;
-                        if (c[0] == minPress) 
+                        if (c[0] == minPress)
                         {
-                            Model.Axes[1].FilterMinValue = xyzPosition;//y轴可显示的最小值
+                            Model.Axes[1].FilterMinValue = xyzPosition;
+                        }
+                        if (c[0]==maxPress)
+                        {
+                            Model.Axes[1].FilterMaxValue = xyzPosition;
                         }
                         if (c[0]>= minPress&&c[0]<=maxPress)
                         {
@@ -254,7 +262,9 @@ namespace LeaderCCD
 
             }));
         }
-
+        /// <summary>
+        /// 实时保存数据，定义一个second防止无限新建文件
+        /// </summary>
         private bool second = false;
 
         public  void SaveinformTest( string position)
@@ -397,8 +407,7 @@ namespace LeaderCCD
                         lock (lineLock1)
                         {
                             lineSeries1.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), xyzPosition));
-                            lineSeries1.Title = "123";
-                            if (lineSeries1.Points.Count > 200)
+                            if (lineSeries1.Points.Count > 100)
                             {
                                 lineSeries1.Points.RemoveAt(0);
                             }
@@ -447,8 +456,27 @@ namespace LeaderCCD
         private LineSeries lineSeries = new LineSeries()
         {
             Title = "Series 1",
+
             //Color = OxyColors.Blue,
             //MarkerType = MarkerType.Circle
+        };
+
+        LineAnnotation lineAnnotation_max = new OxyPlot.Annotations.LineAnnotation()
+        {
+            Type = OxyPlot.Annotations.LineAnnotationType.Horizontal,
+            Color = OxyPlot.OxyColors.Red,
+            LineStyle = OxyPlot.LineStyle.Solid,
+            FontSize = 15,
+            TextVerticalAlignment = VerticalAlignment.Bottom,
+            TextLinePosition = 0.5
+        };
+        LineAnnotation lineAnnotation_min = new OxyPlot.Annotations.LineAnnotation()
+        {
+            Type = OxyPlot.Annotations.LineAnnotationType.Horizontal,
+            Color = OxyPlot.OxyColors.Red,
+            LineStyle = OxyPlot.LineStyle.Solid,
+            FontSize = 15,
+            TextLinePosition = 0.5
         };
         /// <summary>
         /// 初始化压力图表
@@ -458,14 +486,27 @@ namespace LeaderCCD
             ModelRes = new PlotModel()
             {
                 Title = "曲线",
+                IsLegendVisible = true,
+
             };
             ModelRes.Axes.Add(leftAxis);
             ModelRes.Axes.Add(botAxis);
             ModelRes.Series.Add(lineSeries);
+            ModelRes.Annotations.Add(lineAnnotation_max);
+            ModelRes.Annotations.Add(lineAnnotation_min);
             lineSeries.InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline;
+
         }
         object lineLock = new object();
         object lineLock1 = new object();
+        /// <summary>
+        /// 提示线的最大值
+        /// </summary>
+        private double maxxx=0;
+        /// <summary>
+        /// 提示线的最小值
+        /// </summary>
+        private double minnn=1000000;
         /// <summary>
         /// 实时获取，更新曲线
         /// </summary>
@@ -476,6 +517,12 @@ namespace LeaderCCD
                 lock (lineLock)
                 {
                     lineSeries.Points.Add(new DataPoint(times, y));
+                    if(y>maxxx)maxxx=y;
+                    if (y<minnn)minnn=y;
+                    lineAnnotation_max.Y = maxxx;
+                    lineAnnotation_min.Y = minnn;
+                    lineAnnotation_max.Text = $"{lineSeries.Title}最大值：{maxxx}";
+                    lineAnnotation_min.Text = $"{lineSeries.Title}最小值：{minnn}";
                     //lineSeries.Points.Add(new DataPoint(times, rm.Next(0, 10)));
                     ModelRes.Axes[0].Maximum = ModelRes.Axes[0].DataMaximum + 0.5;
                     ModelRes.Axes[0].Minimum = ModelRes.Axes[0].DataMinimum - 0.5;

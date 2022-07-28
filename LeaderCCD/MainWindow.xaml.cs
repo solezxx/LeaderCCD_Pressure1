@@ -36,6 +36,8 @@ namespace LeaderCCD
             PreBoxMin.Text= ConfigurationManager.AppSettings["PreBoxMin"];
             SpeedBox.Text= ConfigurationManager.AppSettings["SpeedBox"];
             TimesBox1.Text= ConfigurationManager.AppSettings["TimesBox1"];
+            M.minPress = Convert.ToInt32(ConfigurationManager.AppSettings["PreBoxMin"]);
+            M.maxPress = Convert.ToInt32(ConfigurationManager.AppSettings["PreBox"]);
         }
         /// <summary>
         /// 是否是纯数字

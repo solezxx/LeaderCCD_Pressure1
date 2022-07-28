@@ -11,6 +11,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using System.Configuration;
 using BingLibrary.hjb.file;
+using OxyPlot.Annotations;
 using OxyPlot.Legends;
 
 namespace LeaderCCD
@@ -184,9 +185,16 @@ namespace LeaderCCD
                         if (a == null || b == null||c==null) continue;
                         int p = a[0] + (a[1] << 16);
                         xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100;
-                        if (test&&c[0]> minPress&&c[0]<maxPress)
+                        if (c[0] == minPress) 
                         {
-                            SaveinformTest( xyzPosition.ToString());
+                            Model.Axes[1].FilterMinValue = xyzPosition;//y轴可显示的最小值
+                        }
+                        if (c[0]>= minPress&&c[0]<=maxPress)
+                        {
+                            if (test)
+                            {
+                                SaveinformTest( xyzPosition.ToString());
+                            }
                         }
                         if (xyzPosition > max)
                         {
@@ -339,15 +347,15 @@ namespace LeaderCCD
             //    Type = LineAnnotationType.Horizontal,
             //    Color = OxyColors.Red,
             //    LineStyle = LineStyle.Solid,
-            //    Y = Convert.ToInt32(Global.Press_Up),
-            //    Text = "Press MAX:" + Convert.ToInt32(Global.Press_Up)
+            //    Y =10,
+            //    Text = "Press MAX:" + 10
             //};
             //Model.Annotations.Add(linePressMaxAnnotation);
             //var linePressMinAnnotation = new LineAnnotation()
             //{
             //    Type = LineAnnotationType.Horizontal,
-            //    Y = Convert.ToInt32(Global.Press_Down),
-            //    Text = "Press Min:" + Convert.ToInt32(Global.Press_Down),
+            //    Y =5,
+            //    Text = "Press Min:" + 5,
             //    Color = OxyColors.Red,
             //    LineStyle = LineStyle.Solid
             //};
@@ -357,6 +365,7 @@ namespace LeaderCCD
             {
                 Position = AxisPosition.Left,
                 //Minimum = -1,
+                //Maximum = 15,
                 Title = "位置(mm)",//显示标题内容
                 //TitlePosition = 1,//显示标题位置
                 //TitleColor = OxyColor.Parse("#d3d3d3"),//显示标题位置
@@ -441,7 +450,6 @@ namespace LeaderCCD
             //Color = OxyColors.Blue,
             //MarkerType = MarkerType.Circle
         };
-       
         /// <summary>
         /// 初始化压力图表
         /// </summary>

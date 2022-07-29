@@ -75,6 +75,7 @@ namespace LeaderCCD
         }
         #region 属性
 
+
         private bool start;
         public bool Start
         {
@@ -125,6 +126,18 @@ namespace LeaderCCD
             {
                 xyzposition = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Position"));
+            }
+        }
+        private double pressure;
+        public double Pressure  
+        {
+            get
+            {
+                return pressure;
+            }
+            set
+            {
+                pressure = value;
             }
         }
         private string plcstate = "PLC未连接";
@@ -188,15 +201,9 @@ namespace LeaderCCD
                         int[] c = ModbusTCP.ModbusRead(1, 3, 610, 1);
                         if (a == null || b == null||c==null) continue;
                         int p = a[0] + (a[1] << 16);
-                        xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100;
-                        if (c[0] == minPress)
-                        {
-                            Model.Axes[1].FilterMinValue = xyzPosition;
-                        }
-                        if (c[0]==maxPress)
-                        {
-                            Model.Axes[1].FilterMaxValue = xyzPosition;
-                        }
+                        Pressure = c[0];//实时压力
+                        xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100.0;//实时位置
+                        Model.Legends[0].LegendTitle = xyzPosition.ToString()+"[mm]";
                         if (c[0]>= minPress&&c[0]<=maxPress)
                         {
                             if (test)
@@ -343,7 +350,7 @@ namespace LeaderCCD
             };
             var lineSeries1 = new LineSeries
             {
-                Title = "Series 1",
+                Title = "实时位置",
                 //MarkerType = MarkerType.Circle,
                 //Color = OxyColors.Blue,
                 //StrokeThickness = 2,
@@ -371,6 +378,18 @@ namespace LeaderCCD
             //};
             //Model.Annotations.Add(linePressMinAnnotation);
 
+
+            //实例图例对象
+            Legend legend = new Legend()
+            {
+                IsLegendVisible = true,//是否可见
+                LegendTitleFontSize = 15, //图例标题字体大小
+                LegendFontSize = 15, //图例字体大小
+                //LegendTitle = "实时位置",//标题
+                LegendFont = "Microsoft YaHei UI",//图例字体
+                LegendFontWeight = FontWeights.Bold,//图例字形
+                LegendTextColor = OxyColors.Automatic,//图例文本颜色
+            };
             OxyPlot.Axes.LinearAxis leftAxis = new OxyPlot.Axes.LinearAxis()
             {
                 Position = AxisPosition.Left,
@@ -396,6 +415,7 @@ namespace LeaderCCD
             };
             Model.Axes.Add(bottomAxis);
             Model.Axes.Add(leftAxis);
+            Model.Legends.Add(legend);
             Model.Series.Add(lineSeries1);//将线添加到图标的容器中
             
             Random rd = new Random();
@@ -406,7 +426,10 @@ namespace LeaderCCD
                     {
                         lock (lineLock1)
                         {
-                            lineSeries1.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), xyzPosition));
+                            if (Pressure>=minPress&&Pressure<=maxPress)
+                            {
+                                lineSeries1.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), xyzPosition));
+                            }
                             if (lineSeries1.Points.Count > 100)
                             {
                                 lineSeries1.Points.RemoveAt(0);
@@ -456,11 +479,20 @@ namespace LeaderCCD
         private LineSeries lineSeries = new LineSeries()
         {
             Title = "Series 1",
-
+            
             //Color = OxyColors.Blue,
             //MarkerType = MarkerType.Circle
         };
-
+        //Legend legend = new Legend()
+        //{
+        //    IsLegendVisible = true,//是否可见
+        //    LegendTitleFontSize = 10, //图例标题字体大小
+        //    LegendFontSize =10, //图例字体大小
+        //    LegendTitle = "图例",//标题
+        //    LegendFont = "Microsoft YaHei UI",//图例字体
+        //    LegendFontWeight = FontWeights.Bold,//图例字形
+        //    LegendTextColor = OxyColors.Automatic,//图例文本颜色
+        //};//实例图例对象
         LineAnnotation lineAnnotation_max = new OxyPlot.Annotations.LineAnnotation()
         {
             Type = OxyPlot.Annotations.LineAnnotationType.Horizontal,
@@ -468,7 +500,7 @@ namespace LeaderCCD
             LineStyle = OxyPlot.LineStyle.Solid,
             FontSize = 15,
             TextVerticalAlignment = VerticalAlignment.Bottom,
-            TextLinePosition = 0.5
+            TextLinePosition = 0.5,
         };
         LineAnnotation lineAnnotation_min = new OxyPlot.Annotations.LineAnnotation()
         {
@@ -494,6 +526,7 @@ namespace LeaderCCD
             ModelRes.Series.Add(lineSeries);
             ModelRes.Annotations.Add(lineAnnotation_max);
             ModelRes.Annotations.Add(lineAnnotation_min);
+            //ModelRes.Legends.Add(legend);
             lineSeries.InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline;
 
         }
@@ -524,8 +557,8 @@ namespace LeaderCCD
                     lineAnnotation_max.Text = $"{lineSeries.Title}最大值：{maxxx}";
                     lineAnnotation_min.Text = $"{lineSeries.Title}最小值：{minnn}";
                     //lineSeries.Points.Add(new DataPoint(times, rm.Next(0, 10)));
-                    ModelRes.Axes[0].Maximum = ModelRes.Axes[0].DataMaximum + 0.5;
-                    ModelRes.Axes[0].Minimum = ModelRes.Axes[0].DataMinimum - 0.5;
+                    ModelRes.Axes[0].Maximum = ModelRes.Axes[0].DataMaximum + 0.1;
+                    ModelRes.Axes[0].Minimum = ModelRes.Axes[0].DataMinimum - 0.1;
                     ModelRes.InvalidatePlot(true);
                 }
             });

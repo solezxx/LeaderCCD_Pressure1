@@ -69,6 +69,7 @@ namespace LeaderCCD
                 x = max;
                 Saveinform(times == 0, x.ToString());
                 Getline(times, x);
+                LdrLog("第" + (times + 1) + "次，最大值" + x);
                 times++;
                 max = 0;
             }
@@ -195,18 +196,27 @@ namespace LeaderCCD
                 {
                     try
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(10);
                         int[] a = ModbusTCP.ModbusRead(1, 3, 88, 2);//读位置
                         int[] b = ModbusTCP.ModbusRead(1, 1, 350, 2);//开始
-                        int[] c = ModbusTCP.ModbusRead(1, 3, 610, 1);
+                        int[] c = ModbusTCP.ModbusRead(1, 3, 610, 1);//读压力
                         if (a == null || b == null||c==null) continue;
                         int p = a[0] + (a[1] << 16);
                         Pressure = c[0];//实时压力
                         xyzPosition = Math.Round(Convert.ToDouble(p), 2) / 100.0;//实时位置
                         Model.Legends[0].LegendTitle = xyzPosition.ToString()+"[mm]";
-                        if (c[0]>= minPress&&c[0]<=maxPress)
+                        //if (Pressure >= minPress - 1 && Pressure <= minPress + 1)
+                        //{
+                        //    if(!(xyzPosition>100))
+                        //         Model.Axes[1].Minimum = xyzPosition - 0.1;
+                        //}
+                        //if (Pressure >= maxPress - 1 && Pressure <= maxPress + 1)
+                        //{
+                        //    Model.Axes[1].Maximum = xyzPosition +100;
+                        //}
+                        if (test)
                         {
-                            if (test)
+                            if (Pressure >= minPress && Pressure <= maxPress)
                             {
                                 SaveinformTest( xyzPosition.ToString());
                             }
@@ -426,10 +436,9 @@ namespace LeaderCCD
                     {
                         lock (lineLock1)
                         {
-                            if (Pressure>=minPress&&Pressure<=maxPress)
-                            {
+                            if (Pressure >= minPress && Pressure <= maxPress)
                                 lineSeries1.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), xyzPosition));
-                            }
+                            
                             if (lineSeries1.Points.Count > 100)
                             {
                                 lineSeries1.Points.RemoveAt(0);
@@ -557,8 +566,8 @@ namespace LeaderCCD
                     lineAnnotation_max.Text = $"{lineSeries.Title}最大值：{maxxx}";
                     lineAnnotation_min.Text = $"{lineSeries.Title}最小值：{minnn}";
                     //lineSeries.Points.Add(new DataPoint(times, rm.Next(0, 10)));
-                    ModelRes.Axes[0].Maximum = ModelRes.Axes[0].DataMaximum + 0.1;
-                    ModelRes.Axes[0].Minimum = ModelRes.Axes[0].DataMinimum - 0.1;
+                    ModelRes.Axes[0].Maximum = maxxx + (maxxx-minnn)/2;
+                    ModelRes.Axes[0].Minimum = minnn - (maxxx - minnn) / 2;
                     ModelRes.InvalidatePlot(true);
                 }
             });
